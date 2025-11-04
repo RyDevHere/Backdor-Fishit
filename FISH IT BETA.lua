@@ -1107,9 +1107,7 @@ do
         -- Update dropdown dengan values baru
         if playerDropdownElement then
             playerDropdownElement:SetValues(newDropdownValues)
-            if #newDropdownValues > 0 then
-                playerDropdownElement:SetValue(newDropdownValues[1])
-            end
+            -- JANGAN otomatis set value ke player pertama
         end
         
         return #newPlayerList
@@ -1125,26 +1123,36 @@ do
         })
     end
     
+    -- PERBAIKAN: Gunakan placeholder default, bukan player pertama
+    local defaultDropdownValue = {Title = "Pilih Player", Icon = "user"}
+    
     if #playerDropdownValues > 0 then
         playerDropdownElement = PlayerTeleportSection:Dropdown({
             Title = "Select Player",
             Desc = "Pilih player untuk teleport",
             Values = playerDropdownValues,
-            Value = playerDropdownValues[1],
+            Value = defaultDropdownValue, -- GUNAKAN PLACEHOLDER, BUKAN PLAYER PERTAMA
             Callback = function(option)
-                TeleportToPlayer(option.Title)
-                WindUI:Notify({
-                    Title = "Teleport",
-                    Content = "Teleport ke: " .. option.Title,
-                    Icon = "user"
-                })
+                -- PERBAIKAN: Validasi untuk cegah auto-teleport
+                if option.Title ~= "Pilih Player" and option.Title ~= "" then
+                    TeleportToPlayer(option.Title)
+                    WindUI:Notify({
+                        Title = "Teleport",
+                        Content = "Teleport ke: " .. option.Title,
+                        Icon = "user"
+                    })
+                end
             end
         })
     else
-        PlayerTeleportSection:Section({
-            Title = "No other players found",
-            TextSize = 14,
-            TextTransparency = 0.5,
+        playerDropdownElement = PlayerTeleportSection:Dropdown({
+            Title = "Select Player",
+            Desc = "Pilih player untuk teleport",
+            Values = {defaultDropdownValue},
+            Value = defaultDropdownValue,
+            Callback = function(option)
+                -- Do nothing if no players
+            end
         })
     end
     
