@@ -1089,15 +1089,11 @@ do
         Title = "Player Teleport",
     })
     
-    -- Variable untuk menyimpan dropdown dan refresh function
+    -- Variable untuk menyimpan dropdown element
     local playerDropdownElement = nil
-    local isRefreshing = false
     
-    -- Function untuk update player list dengan cara yang lebih reliable
+    -- Function untuk update player list - FIX REAL-TIME
     local function updatePlayerDropdown()
-        if isRefreshing then return end
-        isRefreshing = true
-        
         local newPlayerList = GetPlayerList()
         local newDropdownValues = {}
         
@@ -1108,57 +1104,34 @@ do
             })
         end
         
-        -- Jika tidak ada player, tambah placeholder
-        if #newDropdownValues == 0 then
-            table.insert(newDropdownValues, {
-                Title = "No players online",
-                Icon = "users"
-            })
-        end
-        
-        -- Update dropdown jika element ada
+        -- Update dropdown dengan values baru
         if playerDropdownElement then
-            -- Coba beberapa metode update
-            pcall(function()
-                playerDropdownElement:SetValues(newDropdownValues)
-                if #newPlayerList > 0 then
-                    playerDropdownElement:SetValue(newDropdownValues[1])
-                else
-                    playerDropdownElement:SetValue(newDropdownValues[1])
-                end
-            end)
+            playerDropdownElement:SetValues(newDropdownValues)
+            if #newDropdownValues > 0 then
+                playerDropdownElement:SetValue(newDropdownValues[1])
+            end
         end
         
-        isRefreshing = false
         return #newPlayerList
     end
     
-    -- Buat dropdown player
-    local initialPlayerList = GetPlayerList()
-    local initialDropdownValues = {}
-    
-    for _, playerName in ipairs(initialPlayerList) do
-        table.insert(initialDropdownValues, {
+    -- Player List Dropdown
+    local playerList = GetPlayerList()
+    local playerDropdownValues = {}
+    for _, playerName in ipairs(playerList) do
+        table.insert(playerDropdownValues, {
             Title = playerName,
             Icon = "user"
         })
     end
     
-    if #initialDropdownValues == 0 then
-        table.insert(initialDropdownValues, {
-            Title = "No players online", 
-            Icon = "users"
-        })
-    end
-    
-    playerDropdownElement = PlayerTeleportSection:Dropdown({
-        Title = "Select Player",
-        Desc = "Pilih player untuk teleport",
-        Values = initialDropdownValues,
-        Value = initialDropdownValues[1],
-        Callback = function(option)
-            -- Jangan teleport jika placeholder
-            if option.Title ~= "No players online" and option.Title ~= "Select Player" then
+    if #playerDropdownValues > 0 then
+        playerDropdownElement = PlayerTeleportSection:Dropdown({
+            Title = "Select Player",
+            Desc = "Pilih player untuk teleport",
+            Values = playerDropdownValues,
+            Value = playerDropdownValues[1],
+            Callback = function(option)
                 TeleportToPlayer(option.Title)
                 WindUI:Notify({
                     Title = "Teleport",
@@ -1166,13 +1139,19 @@ do
                     Icon = "user"
                 })
             end
-        end
-    })
+        })
+    else
+        PlayerTeleportSection:Section({
+            Title = "No other players found",
+            TextSize = 14,
+            TextTransparency = 0.5,
+        })
+    end
     
-    -- Tombol refresh dengan update yang lebih agresif
+    -- PERBAIKAN: Refresh Player List yang benar-benar REAL-TIME
     PlayerTeleportSection:Button({
         Title = "Refresh Player List",
-        Desc = "Refresh daftar player (Real-time)",
+        Desc = "Refresh daftar player secara real-time",
         Color = Color3.fromHex("#4CAF50"),
         Icon = "refresh-cw",
         Callback = function()
@@ -1185,40 +1164,39 @@ do
         end
     })
     
-    -- Auto refresh system yang lebih aggressive
-    local function setupPlayerTracker()
-        -- Refresh setiap 10 detik
-        local autoRefresh = task.spawn(function()
-            while task.wait(10) do
+    -- REAL-TIME AUTO REFRESH SYSTEM
+    local function setupRealTimePlayerTracker()
+        -- Auto refresh setiap 5 detik
+        task.spawn(function()
+            while task.wait(5) do
                 if playerDropdownElement then
                     updatePlayerDropdown()
                 end
             end
         end)
         
-        -- Player join/leave events
+        -- Player join event
         Players.PlayerAdded:Connect(function(player)
             if player ~= LocalPlayer then
                 task.wait(2) -- Tunggu player fully loaded
-                updatePlayerDropdown()
+                if playerDropdownElement then
+                    updatePlayerDropdown()
+                end
             end
         end)
         
+        -- Player leave event  
         Players.PlayerRemoving:Connect(function(player)
             if player ~= LocalPlayer then
-                updatePlayerDropdown()
+                if playerDropdownElement then
+                    updatePlayerDropdown()
+                end
             end
-        end)
-        
-        -- Juga refresh ketika tab dibuka
-        TeleportTab:Connect(function()
-            task.wait(1)
-            updatePlayerDropdown()
         end)
     end
     
-    -- Start player tracker
-    setupPlayerTracker()
+    -- Start real-time tracker
+    setupRealTimePlayerTracker()
 end
 
 -- */  Utilities Tab  /* --
