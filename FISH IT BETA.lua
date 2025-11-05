@@ -33,19 +33,32 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Waypoints Coordinates
 local islandCoords = {
-	["01"] = { name = "Weather Machine", position = Vector3.new(-1471, -3, 1929) },
-	["02"] = { name = "Esoteric Depths", position = Vector3.new(3157, -1303, 1439) },
-	["03"] = { name = "Tropical Grove", position = Vector3.new(-2038, 3, 3650) },
-	["04"] = { name = "Stingray Shores", position = Vector3.new(-32, 4, 2773) },
-	["05"] = { name = "Kohana Volcano", position = Vector3.new(-519, 24, 189) },
-	["06"] = { name = "Coral Reefs", position = Vector3.new(-3095, 1, 2177) },
-	["07"] = { name = "Crater Island", position = Vector3.new(968, 1, 4854) },
-	["08"] = { name = "Kohana", position = Vector3.new(-658, 3, 719) },
+	["01"] = { name = "Weather Machine", position = Vector3.new(-1525, 2, 1915) },
+	["02"] = { name = "Esoteric Depths", position = Vector3.new(2961, -1303, 1521) },
+	["03"] = { name = "Tropical Grove", position = Vector3.new(-2019, 9, 3750) },
+	["04"] = { name = "Stingray Shores", position = Vector3.new(33, 3, 2764) },
+	["05"] = { name = "Kohana Volcano", position = Vector3.new(-562, 21, 156) },
+	["06"] = { name = "Coral Reefs", position = Vector3.new(-3031, 2, 2275) },
+	["07"] = { name = "Crater Island", position = Vector3.new(1084, 5, 5082) },
+	["08"] = { name = "Kohana", position = Vector3.new(-368, 6, 521) },
 	["09"] = { name = "Winter Fest", position = Vector3.new(1611, 4, 3280) },
-	["10"] = { name = "Isoteric Island", position = Vector3.new(1987, 4, 1400) },
-	["11"] = { name = "Treasure Hall", position = Vector3.new(-3600, -267, -1558) },
-	["12"] = { name = "Lost Shore", position = Vector3.new(-3663, 38, -989 ) },
-	["13"] = { name = "Sishypus Statue", position = Vector3.new(-3792, -135, -986) }
+	["10"] = { name = "Isoteric Island", position = Vector3.new(2031, 27, 1380) },
+	["11"] = { name = "Treasure Hall", position = Vector3.new(-3603, -267, -1578) },
+	["12"] = { name = "Lost Shore", position = Vector3.new(-3738, 5, -855) },
+	["13"] = { name = "Sishypus Statue", position = Vector3.new(-3704, -136, -1018) },
+	["14"] = { name = "Secret Temple", position = Vector3.new(1475, -22, -632) },
+	["15"] = { name = "Kohana Spot 2", position = Vector3.new(-625, 19, 421) },
+	["16"] = { name = "Tropical Grove Cave 1", position = Vector3.new(-2151, 2, 3671) },
+	["17"] = { name = "Underground Cellar", position = Vector3.new(2136, -92, -699) },
+	["18"] = { name = "Ancient Jungle", position = Vector3.new(1274, 7, -184) },
+	["19"] = { name = "Ancient Jungle Outside", position = Vector3.new(1488, 7, -392) },
+	["20"] = { name = "Fisherman Island Underground", position = Vector3.new(-65, 3, 2849) },
+	["21"] = { name = "Admin Spot", position = Vector3.new(-1956, -441, 7389) },
+	["22"] = { name = "Crater Island Top", position = Vector3.new(1011, 22, 5076) },
+	["23"] = { name = "Coral Reefs Spot 3", position = Vector3.new(-3137, 2, 2126) },
+	["24"] = { name = "Tropical Grove Highground", position = Vector3.new(-2139, 53, 3624) },
+	["25"] = { name = "Tropical Grove Cave 2", position = Vector3.new(-2018, 4, 3756) },
+	["26"] = { name = "Coral Reefs Spot 1", position = Vector3.new(-3031, 2, 2275) }
 }
 
 -- Path dasar ke remote sleitnick_net
@@ -1090,10 +1103,10 @@ do
     })
     
     -- Variable untuk menyimpan dropdown element
-    local playerDropdownElement = nil
+    local playerDropdown
     
-    -- Function untuk update player list - FIX REAL-TIME
-    local function updatePlayerDropdown()
+    -- Function untuk update player list
+    local function UpdatePlayerList()
         local newPlayerList = GetPlayerList()
         local newDropdownValues = {}
         
@@ -1105,17 +1118,30 @@ do
         end
         
         -- Update dropdown dengan values baru
-        if playerDropdownElement then
-            playerDropdownElement:SetValues(newDropdownValues)
-            -- JANGAN otomatis set value ke player pertama
+        if playerDropdown then
+            if #newDropdownValues > 0 then
+                playerDropdown:SetValues(newDropdownValues)
+                playerDropdown:SetValue({Title = "Select Player", Icon = "user"})
+            else
+                playerDropdown:SetValues({{Title = "No players found", Icon = "user"}})
+                playerDropdown:SetValue({Title = "No players found", Icon = "user"})
+            end
         end
+        
+        -- Notifikasi
+        WindUI:Notify({
+            Title = "Player List Refreshed", 
+            Content = #newPlayerList > 0 and ("Found " .. #newPlayerList .. " players") or "No other players found",
+            Icon = #newPlayerList > 0 and "check-circle" or "alert-circle"
+        })
         
         return #newPlayerList
     end
     
-    -- Player List Dropdown
+    -- Initial player list setup
     local playerList = GetPlayerList()
     local playerDropdownValues = {}
+    
     for _, playerName in ipairs(playerList) do
         table.insert(playerDropdownValues, {
             Title = playerName,
@@ -1123,18 +1149,15 @@ do
         })
     end
     
-    -- PERBAIKAN: Gunakan placeholder default, bukan player pertama
-    local defaultDropdownValue = {Title = "Pilih Player", Icon = "user"}
-    
+    -- Create dropdown
     if #playerDropdownValues > 0 then
-        playerDropdownElement = PlayerTeleportSection:Dropdown({
+        playerDropdown = PlayerTeleportSection:Dropdown({
             Title = "Select Player",
             Desc = "Pilih player untuk teleport",
             Values = playerDropdownValues,
-            Value = defaultDropdownValue, -- GUNAKAN PLACEHOLDER, BUKAN PLAYER PERTAMA
+            Value = {Title = "Select Player", Icon = "user"},
             Callback = function(option)
-                -- PERBAIKAN: Validasi untuk cegah auto-teleport
-                if option.Title ~= "Pilih Player" and option.Title ~= "" then
+                if option.Title ~= "Select Player" and option.Title ~= "No players found" and option.Title ~= "" then
                     TeleportToPlayer(option.Title)
                     WindUI:Notify({
                         Title = "Teleport",
@@ -1145,66 +1168,32 @@ do
             end
         })
     else
-        playerDropdownElement = PlayerTeleportSection:Dropdown({
-            Title = "Select Player",
+        playerDropdown = PlayerTeleportSection:Dropdown({
+            Title = "Select Player", 
             Desc = "Pilih player untuk teleport",
-            Values = {defaultDropdownValue},
-            Value = defaultDropdownValue,
-            Callback = function(option)
-                -- Do nothing if no players
-            end
+            Values = {{Title = "No players found", Icon = "user"}},
+            Value = {Title = "No players found", Icon = "user"},
+            Callback = function() end
         })
     end
     
-    -- PERBAIKAN: Refresh Player List yang benar-benar REAL-TIME
+    -- Refresh Player List Button
     PlayerTeleportSection:Button({
         Title = "Refresh Player List",
-        Desc = "Refresh daftar player secara real-time",
+        Desc = "Refresh daftar player yang online",
         Color = Color3.fromHex("#4CAF50"),
         Icon = "refresh-cw",
         Callback = function()
-            local playerCount = updatePlayerDropdown()
-            WindUI:Notify({
-                Title = "Player List", 
-                Content = playerCount > 0 and ("Player list refreshed! " .. playerCount .. " players found") or "No other players found",
-                Icon = "refresh-cw"
-            })
+            UpdatePlayerList()
         end
     })
     
-    -- REAL-TIME AUTO REFRESH SYSTEM
-    local function setupRealTimePlayerTracker()
-        -- Auto refresh setiap 5 detik
-        task.spawn(function()
-            while task.wait(5) do
-                if playerDropdownElement then
-                    updatePlayerDropdown()
-                end
-            end
-        end)
-        
-        -- Player join event
-        Players.PlayerAdded:Connect(function(player)
-            if player ~= LocalPlayer then
-                task.wait(2) -- Tunggu player fully loaded
-                if playerDropdownElement then
-                    updatePlayerDropdown()
-                end
-            end
-        end)
-        
-        -- Player leave event  
-        Players.PlayerRemoving:Connect(function(player)
-            if player ~= LocalPlayer then
-                if playerDropdownElement then
-                    updatePlayerDropdown()
-                end
-            end
-        end)
-    end
-    
-    -- Start real-time tracker
-    setupRealTimePlayerTracker()
+    -- Auto-refresh setiap 30 detik
+    spawn(function()
+        while wait(30) do
+            UpdatePlayerList()
+        end
+    end)
 end
 
 -- */  Utilities Tab  /* --
