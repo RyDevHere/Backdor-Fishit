@@ -137,6 +137,11 @@ local AutoClickState = {
     isHovering = false
 }
 
+-- Nilai Delay yang Digunakan
+local BypassDelay = 4.2 -- Default delay starter rod bypass
+local additionalWait = 0 -- No additional wait for maximum speed
+local speedFactor = 1 -- KEKURANGAN INI: Tambahkan variabel speedFactor
+
 -- Delay Bypass per pancing
 local RodDelays = {
     ["Ares Rod"] = {bypass = 1.45},
@@ -964,6 +969,63 @@ do
             end
         end
     })
+    
+    AutoFishingSection:Space()
+    
+    -- Speed Factor Controls (BARU)
+    AutoFishingSection:Section({
+        Title = "Speed Multiplier",
+        TextSize = 16,
+        FontWeight = Enum.FontWeight.SemiBold,
+    })
+    
+    AutoFishingSection:Section({
+        Title = string.format("Current Speed: %.1fx", speedFactor),
+        TextSize = 14,
+        TextTransparency = 0.5,
+    })
+    
+    AutoFishingSection:Button({
+        Title = "Faster (1.5x)",
+        Desc = "Tingkatkan kecepatan fishing",
+        Color = Color3.fromHex("#FFD700"),
+        Callback = function()
+            speedFactor = 1.5
+            WindUI:Notify({
+                Title = "Speed Multiplier",
+                Content = string.format("Speed set to: %.1fx", speedFactor),
+                Icon = "zap"
+            })
+        end
+    })
+    
+    AutoFishingSection:Button({
+        Title = "Normal (1x)",
+        Desc = "Kembali ke kecepatan normal",
+        Color = Color3.fromHex("#4CAF50"),
+        Callback = function()
+            speedFactor = 1
+            WindUI:Notify({
+                Title = "Speed Multiplier",
+                Content = string.format("Speed set to: %.1fx", speedFactor),
+                Icon = "clock"
+            })
+        end
+    })
+    
+    AutoFishingSection:Button({
+        Title = "Turbo (2x)",
+        Desc = "Kecepatan maksimal (risky)",
+        Color = Color3.fromHex("#FF5722"),
+        Callback = function()
+            speedFactor = 2
+            WindUI:Notify({
+                Title = "Speed Multiplier",
+                Content = string.format("Speed set to: %.1fx (Turbo Mode)", speedFactor),
+                Icon = "zap"
+            })
+        end
+    })
 end
 
 -- */  Auto Features Tab  /* --
@@ -1059,6 +1121,294 @@ do
             })
         end
     })
+
+    AutoFeaturesTab:Space({ Columns = 2 })
+
+    -- Auto Radar Section
+    local AutoRadarSection = AutoFeaturesTab:Section({
+        Title = "Auto Radar Settings",
+    })
+
+    -- State untuk auto radar
+    local AutoRadarState = {
+        enabled = false,
+        radarRemote = nil
+    }
+
+    -- Function untuk mendapatkan radar remote
+    local function GetRadarRemote()
+        if not AutoRadarState.radarRemote then
+            AutoRadarState.radarRemote = game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net"):WaitForChild("RF/UpdateFishingRadar")
+        end
+        return AutoRadarState.radarRemote
+    end
+
+    -- Function untuk start auto radar
+    local function StartAutoRadar()
+        if AutoRadarState.enabled then return end
+        
+        AutoRadarState.enabled = true
+        task.spawn(function()
+            while AutoRadarState.enabled do
+                pcall(function()
+                    local radarRemote = GetRadarRemote()
+                    if radarRemote then
+                        radarRemote:InvokeServer(true)
+                        print("🛰️ Radar activated")
+                    end
+                end)
+                task.wait(1) -- Aktifkan radar setiap 1 detik
+            end
+        end)
+    end
+
+    -- Function untuk stop auto radar
+    local function StopAutoRadar()
+        AutoRadarState.enabled = false
+        pcall(function()
+            local radarRemote = GetRadarRemote()
+            if radarRemote then
+                radarRemote:InvokeServer(false)
+                print("🛰️ Radar deactivated")
+            end
+        end)
+    end
+
+    -- Auto Radar Toggle
+    AutoRadarSection:Toggle({
+        Title = "Auto Radar",
+        Desc = "Otomatis aktifkan fishing radar",
+        Default = AutoRadarState.enabled,
+        Callback = function(value)
+            if value then
+                StartAutoRadar()
+                WindUI:Notify({
+                    Title = "Auto Radar",
+                    Content = "Auto Radar Diaktifkan!",
+                    Icon = "radar"
+                })
+            else
+                StopAutoRadar()
+                WindUI:Notify({
+                    Title = "Auto Radar",
+                    Content = "Auto Radar Dinonaktifkan!",
+                    Icon = "radar"
+                })
+            end
+        end
+    })
+
+    AutoRadarSection:Space()
+
+    -- Manual Radar Controls
+    AutoRadarSection:Button({
+        Title = "Activate Radar",
+        Desc = "Aktifkan fishing radar manual",
+        Color = Color3.fromHex("#2196F3"),
+        Icon = "power",
+        Callback = function()
+            pcall(function()
+                local radarRemote = GetRadarRemote()
+                if radarRemote then
+                    radarRemote:InvokeServer(true)
+                    WindUI:Notify({
+                        Title = "Radar",
+                        Content = "Radar activated!",
+                        Icon = "power"
+                    })
+                end
+            end)
+        end
+    })
+
+    AutoRadarSection:Button({
+        Title = "Deactivate Radar",
+        Desc = "Matikan fishing radar manual",
+        Color = Color3.fromHex("#FF5722"),
+        Icon = "power-off",
+        Callback = function()
+            pcall(function()
+                local radarRemote = GetRadarRemote()
+                if radarRemote then
+                    radarRemote:InvokeServer(false)
+                    WindUI:Notify({
+                        Title = "Radar",
+                        Content = "Radar deactivated!",
+                        Icon = "power-off"
+                    })
+                end
+            end)
+        end
+    })
+
+    AutoRadarSection:Space()
+
+    -- Radar Status Indicator
+    AutoRadarSection:Section({
+        Title = "Radar Status: " .. (AutoRadarState.enabled and "ACTIVE" or "INACTIVE"),
+        TextColor = AutoRadarState.enabled and Color3.fromHex("#30ff6a") or Color3.fromHex("#ff3040"),
+        TextSize = 14,
+        FontWeight = Enum.FontWeight.SemiBold,
+    })
+
+    AutoFeaturesTab:Space({ Columns = 2 })
+
+    -- Auto Swimming Equipment Section
+    local AutoSwimmingSection = AutoFeaturesTab:Section({
+        Title = "Auto Swimming Equipment",
+    })
+
+    -- State untuk auto swimming equipment
+    local AutoSwimmingState = {
+        enabled = false,
+        oxygenTankRemote = nil,
+        unequipOxygenRemote = nil
+    }
+
+    -- Function untuk mendapatkan swimming equipment remotes
+    local function GetSwimmingRemotes()
+        if not AutoSwimmingState.oxygenTankRemote then
+            AutoSwimmingState.oxygenTankRemote = game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net"):WaitForChild("RF/EquipOxygenTank")
+        end
+        if not AutoSwimmingState.unequipOxygenRemote then
+            AutoSwimmingState.unequipOxygenRemote = game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net"):WaitForChild("RF/UnequipOxygenTank")
+        end
+        return AutoSwimmingState.oxygenTankRemote, AutoSwimmingState.unequipOxygenRemote
+    end
+
+    -- Function untuk start auto swimming equipment
+    local function StartAutoSwimming()
+        if AutoSwimmingState.enabled then return end
+        
+        AutoSwimmingState.enabled = true
+        task.spawn(function()
+            while AutoSwimmingState.enabled do
+                pcall(function()
+                    local equipRemote, unequipRemote = GetSwimmingRemotes()
+                    if equipRemote then
+                        equipRemote:InvokeServer(105) -- Oxygen tank ID 105
+                        print("🏊 Oxygen tank equipped")
+                    end
+                end)
+                task.wait(5) -- Cek setiap 5 detik
+            end
+        end)
+    end
+
+    -- Function untuk stop auto swimming equipment
+    local function StopAutoSwimming()
+        AutoSwimmingState.enabled = false
+        pcall(function()
+            local _, unequipRemote = GetSwimmingRemotes()
+            if unequipRemote then
+                unequipRemote:InvokeServer()
+                print("🏊 Oxygen tank unequipped")
+            end
+        end)
+    end
+
+    -- Auto Swimming Equipment Toggle
+    AutoSwimmingSection:Toggle({
+        Title = "Auto Swimming Equipment",
+        Desc = "Otomatis equip oxygen tank",
+        Default = AutoSwimmingState.enabled,
+        Callback = function(value)
+            if value then
+                StartAutoSwimming()
+                WindUI:Notify({
+                    Title = "Auto Swimming",
+                    Content = "Auto Swimming Equipment Diaktifkan!",
+                    Icon = "swimming"
+                })
+            else
+                StopAutoSwimming()
+                WindUI:Notify({
+                    Title = "Auto Swimming",
+                    Content = "Auto Swimming Equipment Dinonaktifkan!",
+                    Icon = "swimming"
+                })
+            end
+        end
+    })
+
+    AutoSwimmingSection:Space()
+
+    -- Manual Swimming Controls
+    AutoSwimmingSection:Button({
+        Title = "Equip Oxygen Tank",
+        Desc = "Equip oxygen tank manual (ID: 105)",
+        Color = Color3.fromHex("#2196F3"),
+        Icon = "plus",
+        Callback = function()
+            pcall(function()
+                local equipRemote, _ = GetSwimmingRemotes()
+                if equipRemote then
+                    equipRemote:InvokeServer(105)
+                    WindUI:Notify({
+                        Title = "Swimming Equipment",
+                        Content = "Oxygen tank equipped!",
+                        Icon = "plus"
+                    })
+                end
+            end)
+        end
+    })
+
+    AutoSwimmingSection:Button({
+        Title = "Unequip Oxygen Tank",
+        Desc = "Unequip oxygen tank manual",
+        Color = Color3.fromHex("#FF5722"),
+        Icon = "minus",
+        Callback = function()
+            pcall(function()
+                local _, unequipRemote = GetSwimmingRemotes()
+                if unequipRemote then
+                    unequipRemote:InvokeServer()
+                    WindUI:Notify({
+                        Title = "Swimming Equipment",
+                        Content = "Oxygen tank unequipped!",
+                        Icon = "minus"
+                    })
+                end
+            end)
+        end
+    })
+
+    AutoSwimmingSection:Space()
+
+    -- Swimming Equipment Status Indicator
+    AutoSwimmingSection:Section({
+        Title = "Oxygen Tank: " .. (AutoSwimmingState.enabled and "EQUIPPED" or "UNEQUIPPED"),
+        TextColor = AutoSwimmingState.enabled and Color3.fromHex("#30ff6a") or Color3.fromHex("#ff3040"),
+        TextSize = 14,
+        FontWeight = Enum.FontWeight.SemiBold,
+    })
+
+    AutoSwimmingSection:Space()
+
+    -- Oxygen Tank ID Input
+    AutoSwimmingSection:Input({
+        Title = "Oxygen Tank ID",
+        Desc = "ID oxygen tank yang akan di-equip (default: 105)",
+        Value = "105",
+        Callback = function(value)
+            local tankId = tonumber(value)
+            if tankId and tankId > 0 then
+                -- Simpan ID untuk digunakan nanti
+                WindUI:Notify({
+                    Title = "Oxygen Tank ID",
+                    Content = "ID set to: " .. tankId,
+                    Icon = "edit"
+                })
+            else
+                WindUI:Notify({
+                    Title = "Error",
+                    Content = "Invalid oxygen tank ID!",
+                    Icon = "alert-triangle"
+                })
+            end
+        end
+    })
 end
 
 -- */  Teleport Tab  /* --
@@ -1128,13 +1478,6 @@ do
             end
         end
         
-        -- Notifikasi
-        WindUI:Notify({
-            Title = "Player List Refreshed", 
-            Content = #newPlayerList > 0 and ("Found " .. #newPlayerList .. " players") or "No other players found",
-            Icon = #newPlayerList > 0 and "check-circle" or "alert-circle"
-        })
-        
         return #newPlayerList
     end
     
@@ -1177,23 +1520,86 @@ do
         })
     end
     
-    -- Refresh Player List Button
+    -- Refresh Player List Button dengan notifikasi
     PlayerTeleportSection:Button({
         Title = "Refresh Player List",
         Desc = "Refresh daftar player yang online",
         Color = Color3.fromHex("#4CAF50"),
         Icon = "refresh-cw",
         Callback = function()
-            UpdatePlayerList()
+            local playerCount = UpdatePlayerList()
+            WindUI:Notify({
+                Title = "Player List Refreshed", 
+                Content = playerCount > 0 and ("Found " .. playerCount .. " players") or "No other players found",
+                Icon = playerCount > 0 and "check-circle" or "alert-circle"
+            })
         end
     })
     
-    -- Auto-refresh setiap 30 detik
+    -- Auto-refresh setiap 10 detik (tanpa notifikasi)
     spawn(function()
-        while wait(30) do
+        while wait(10) do
             UpdatePlayerList()
         end
     end)
+
+    TeleportTab:Space({ Columns = 2 })
+
+    -- Tabel Artefak Section
+    local ArtefakSection = TeleportTab:Section({
+        Title = "Artefak Locations",
+    })
+
+    -- Daftar koordinat artefak
+    local artefakCoords = {
+        ["01"] = { name = "Green Artefak", position = Vector3.new(1409, 6, 117) },
+        ["02"] = { name = "Purple Artefak", position = Vector3.new(1841, 4, -289) },
+        ["03"] = { name = "Yellow Artefak", position = Vector3.new(1486, 6, -848) },
+        ["04"] = { name = "Red Artefak", position = Vector3.new(878, 3, -339) },
+    }
+
+    -- Function khusus untuk teleport artefak
+    local function TeleportToArtefak(artefakKey)
+        local artefak = artefakCoords[artefakKey]
+        if not artefak then
+            print("❌ Artefak not found: " .. artefakKey)
+            return
+        end
+        
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then
+            print("❌ HumanoidRootPart not found.")
+            return
+        end
+        
+        hrp.CFrame = CFrame.new(artefak.position + Vector3.new(0, 5, 0))
+        print("🚀 Teleported to artefak: " .. artefak.name)
+    end
+
+    -- Artefak Grid
+    local artefakKeys = {}
+    for key in pairs(artefakCoords) do
+        table.insert(artefakKeys, key)
+    end
+    table.sort(artefakKeys)
+    
+    for _, key in ipairs(artefakKeys) do
+        local artefak = artefakCoords[key]
+        ArtefakSection:Button({
+            Title = key .. ": " .. artefak.name,
+            Desc = "Teleport ke " .. artefak.name,
+            Color = Color3.fromHex("#FF9800"),
+            Callback = function()
+                TeleportToArtefak(key)
+                WindUI:Notify({
+                    Title = "Artefak Teleport",
+                    Content = "Teleport ke: " .. artefak.name,
+                    Icon = "treasure"
+                })
+            end
+        })
+    end
 end
 
 -- */  Utilities Tab  /* --
