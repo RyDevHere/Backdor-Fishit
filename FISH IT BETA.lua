@@ -346,6 +346,11 @@ function StartAutoFish()
             pcall(function()
                 print("🎣 Starting new fishing cycle...")
 
+                -- Gunakan fishing delay custom
+                if FishingState.fishingDelay > 0 then
+                    task.wait(FishingState.fishingDelay)
+                end
+
                 -- 1. Equip (skip if already holding tool)
                 if not LocalPlayer.Character:FindFirstChildOfClass("Tool") then
                     EquipToolRE:FireServer(1)
@@ -374,17 +379,26 @@ function StartAutoFish()
                 RequestMinigameRF:InvokeServer(x, y)
                 print("  -> Minigame result sent.")
 
-                -- 5. Wait for Catch Time
-                local effectiveBypass = BypassDelay / speedFactor + (math.random(-50, 50)/1000)
-                print(string.format("  -> Waiting %.2fs for bite (based on Bypass: %.2fs)...", effectiveBypass, BypassDelay))
+                -- 5. Wait for Catch Time dengan speed factor
+                local effectiveBypass = BypassDelay / FishingState.speedFactor + (math.random(-50, 50)/1000)
+                print(string.format("  -> Waiting %.2fs for bite (based on Bypass: %.2fs, Speed: %.1fx)...", effectiveBypass, BypassDelay, FishingState.speedFactor))
                 task.wait(effectiveBypass)
 
-                -- 6. Tunggu Jeda Tambahan Singkat
-                task.wait(additionalWait)
+                -- 6. Gunakan shake delay custom
+                if FishingState.shakeDelay > 0 then
+                    task.wait(FishingState.shakeDelay)
+                end
 
-                -- 7. Send Catch Confirmation and Immediate Recast berbarengan
-                FishingCompletedRE:FireServer()
-                print("✅ Fish Caught!")
+                -- 7. Instant complete atau normal
+                if FishingState.instantComplete then
+                    -- Instant complete logic
+                    FishingCompletedRE:FireServer()
+                    print("⚡ Instant Fish Caught!")
+                else
+                    -- Normal fishing logic
+                    FishingCompletedRE:FireServer()
+                    print("✅ Fish Caught!")
+                end
 
                 -- Immediate recast berbarengan tanpa delay
                 task.spawn(function()
@@ -408,11 +422,17 @@ function StartAutoFish()
                     end
                     RequestMinigameRF:InvokeServer(x, y)
                     print("  -> Minigame result sent.")
-                    local effectiveBypass = BypassDelay / speedFactor + (math.random(-50, 50)/1000)
-                    print(string.format("  -> Waiting %.2fs for bite (based on Bypass: %.2fs)...", effectiveBypass, BypassDelay))
+                    local effectiveBypass = BypassDelay / FishingState.speedFactor + (math.random(-50, 50)/1000)
+                    print(string.format("  -> Waiting %.2fs for bite (based on Bypass: %.2fs, Speed: %.1fx)...", effectiveBypass, BypassDelay, FishingState.speedFactor))
                     task.wait(effectiveBypass)
-                    FishingCompletedRE:FireServer()
-                    print("✅ Immediate Fish Caught!")
+                    
+                    if FishingState.instantComplete then
+                        FishingCompletedRE:FireServer()
+                        print("⚡ Immediate Instant Fish Caught!")
+                    else
+                        FishingCompletedRE:FireServer()
+                        print("✅ Immediate Fish Caught!")
+                    end
                 end)
 
             end)
@@ -827,7 +847,7 @@ local function tableToClipboard(luau_table, indent)
     return jsonString
 end
 
--- */  Auto Fishing Tab  /* --
+-- */ Auto Fishing Tab /* --
 do
     local AutoFishingTab = Window:Tab({
         Title = "Auto Fishing",
@@ -837,6 +857,12 @@ do
     local AutoFishingSection = AutoFishingTab:Section({
         Title = "Auto Fishing Settings",
     })
+    
+    -- Inisialisasi variabel yang belum ada
+    FishingState.fishingDelay = FishingState.fishingDelay or 1
+    FishingState.shakeDelay = FishingState.shakeDelay or 0.5
+    FishingState.instantComplete = FishingState.instantComplete or false
+    FishingState.speedFactor = FishingState.speedFactor or 1
     
     -- Status Indicator
     local statusText = "Status: " .. (FishingState.autoFish and "Aktif" or "Nonaktif")
@@ -903,61 +929,25 @@ do
     
     AutoFishingSection:Space()
     
-    -- Bypass Delay Controls
+    -- Custom Delay Settings
     AutoFishingSection:Section({
-        Title = "Bypass Delay Settings",
+        Title = "Custom Delay Settings",
         TextSize = 16,
         FontWeight = Enum.FontWeight.SemiBold,
     })
     
-    AutoFishingSection:Section({
-        Title = string.format("Current Bypass Delay: %.2fs", BypassDelay),
-        TextSize = 14,
-        TextTransparency = 0.5,
-    })
-    
-    AutoFishingSection:Button({
-        Title = "- 0.1s",
-        Desc = "Kurangi bypass delay",
-        Color = Color3.fromHex("#ff6b35"),
-        Callback = function()
-            AdjustBypassDelay(-0.1)
-            WindUI:Notify({
-                Title = "Bypass Delay",
-                Content = string.format("Bypass Delay: %.2fs", BypassDelay),
-                Icon = "minus"
-            })
-        end
-    })
-    
-    AutoFishingSection:Button({
-        Title = "+ 0.1s",
-        Desc = "Tambah bypass delay",
-        Color = Color3.fromHex("#4CAF50"),
-        Callback = function()
-            AdjustBypassDelay(0.1)
-            WindUI:Notify({
-                Title = "Bypass Delay",
-                Content = string.format("Bypass Delay: %.2fs", BypassDelay),
-                Icon = "plus"
-            })
-        end
-    })
-    
-    AutoFishingSection:Space()
-    
-    -- Additional Wait Input
+    -- Fishing Delay Input
     AutoFishingSection:Input({
-        Title = "Additional Wait",
-        Desc = "Waktu tambahan setelah bite (detik)",
-        Value = tostring(additionalWait),
+        Title = "Fishing Delay",
+        Desc = "Delay sebelum memulai fishing (detik)",
+        Value = tostring(FishingState.fishingDelay),
         Callback = function(value)
             local number = tonumber(value)
             if number and number >= 0 then
-                additionalWait = number
+                FishingState.fishingDelay = number
                 WindUI:Notify({
-                    Title = "Additional Wait",
-                    Content = string.format("Set to: %.2fs", additionalWait),
+                    Title = "Fishing Delay",
+                    Content = string.format("Set to: %.2fs", FishingState.fishingDelay),
                     Icon = "clock"
                 })
             else
@@ -970,9 +960,56 @@ do
         end
     })
     
+    -- Shake Delay Input
+    AutoFishingSection:Input({
+        Title = "Shake Delay",
+        Desc = "Delay setelah bite sebelum reel (detik)",
+        Value = tostring(FishingState.shakeDelay),
+        Callback = function(value)
+            local number = tonumber(value)
+            if number and number >= 0 then
+                FishingState.shakeDelay = number
+                WindUI:Notify({
+                    Title = "Shake Delay",
+                    Content = string.format("Set to: %.2fs", FishingState.shakeDelay),
+                    Icon = "clock"
+                })
+            else
+                WindUI:Notify({
+                    Title = "Error",
+                    Content = "Invalid input!",
+                    Icon = "alert-triangle"
+                })
+            end
+        end
+    })
+    
+    -- Instant Complete Toggle
+    AutoFishingSection:Toggle({
+        Title = "Instant Complete",
+        Desc = "Selesaikan fishing secara instan",
+        Default = FishingState.instantComplete,
+        Callback = function(value)
+            FishingState.instantComplete = value
+            if value then
+                WindUI:Notify({
+                    Title = "Instant Complete",
+                    Content = "Instant Complete Diaktifkan!",
+                    Icon = "zap"
+                })
+            else
+                WindUI:Notify({
+                    Title = "Instant Complete",
+                    Content = "Instant Complete Dinonaktifkan!",
+                    Icon = "clock"
+                })
+            end
+        end
+    })
+    
     AutoFishingSection:Space()
     
-    -- Speed Factor Controls (BARU)
+    -- Speed Multiplier Controls
     AutoFishingSection:Section({
         Title = "Speed Multiplier",
         TextSize = 16,
@@ -980,7 +1017,7 @@ do
     })
     
     AutoFishingSection:Section({
-        Title = string.format("Current Speed: %.1fx", speedFactor),
+        Title = string.format("Current Speed: %.1fx", FishingState.speedFactor),
         TextSize = 14,
         TextTransparency = 0.5,
     })
@@ -990,10 +1027,10 @@ do
         Desc = "Tingkatkan kecepatan fishing",
         Color = Color3.fromHex("#FFD700"),
         Callback = function()
-            speedFactor = 1.5
+            FishingState.speedFactor = 1.5
             WindUI:Notify({
                 Title = "Speed Multiplier",
-                Content = string.format("Speed set to: %.1fx", speedFactor),
+                Content = string.format("Speed set to: %.1fx", FishingState.speedFactor),
                 Icon = "zap"
             })
         end
@@ -1004,10 +1041,10 @@ do
         Desc = "Kembali ke kecepatan normal",
         Color = Color3.fromHex("#4CAF50"),
         Callback = function()
-            speedFactor = 1
+            FishingState.speedFactor = 1
             WindUI:Notify({
                 Title = "Speed Multiplier",
-                Content = string.format("Speed set to: %.1fx", speedFactor),
+                Content = string.format("Speed set to: %.1fx", FishingState.speedFactor),
                 Icon = "clock"
             })
         end
@@ -1018,10 +1055,10 @@ do
         Desc = "Kecepatan maksimal (risky)",
         Color = Color3.fromHex("#FF5722"),
         Callback = function()
-            speedFactor = 2
+            FishingState.speedFactor = 2
             WindUI:Notify({
                 Title = "Speed Multiplier",
-                Content = string.format("Speed set to: %.1fx (Turbo Mode)", speedFactor),
+                Content = string.format("Speed set to: %.1fx (Turbo Mode)", FishingState.speedFactor),
                 Icon = "zap"
             })
         end
